@@ -20,10 +20,16 @@
         "note":     "context / prior partial answer", // optional
         "seedAnswer": "answer carried over from the markdown" // optional; makes it Closed
       }
-  * Answers typed by the user live in localStorage only. They are exported with the
-    "Export for Junam" button as cyclamen-qa-<date>.json. Read that file, then fold the
-    answers back into CLAUDE.md / docs/FilesDescriptions.md and add `seedAnswer` here so a
-    cleared browser does not lose them.
+  * Answers typed by the user live in localStorage, AND (once auto-save is connected — see
+    below) are written automatically, on every save, to answers/cyclamen-qa-live.json via the
+    File System Access API. Junam reads that file directly — it is always current, no export
+    click required. Fold answers back into CLAUDE.md / docs/FilesDescriptions.md and add
+    `seedAnswer` here so a cleared browser does not lose them.
+  * Auto-save needs one one-time grant per browser (the "Connect auto-save…" button, Chromium
+    only). If answers/cyclamen-qa-live.json is missing or stale, fall back to the newest
+    cyclamen-qa-<date>.json produced by the manual "Export for Junam" button — that mechanism
+    still exists for browsers without File System Access support, or if auto-save was never
+    connected.
   * `Export Markdown` downloads a derived read-only view as CLARIFYING_QUESTIONS.generated.md.
     It is disposable and is never committed — this file is the source of truth, and the
     deleted CLARIFYING_QUESTIONS.md must not be recreated as a second one.
@@ -95,6 +101,9 @@
   }
   .btn:hover{background:var(--panel-2)}
   .btn.p{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
+  .btn.as-on{background:var(--closed-bg); color:var(--closed); border-color:transparent}
+  .btn.as-off{background:var(--open-bg); color:var(--open); border-color:transparent}
+  .btn:disabled{opacity:.5; cursor:default}
 
   /* cards */
   .sec{margin:22px 0 8px; font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-2)}
@@ -141,7 +150,7 @@
 <div class="wrap">
   <header class="top">
     <h1>Cyclamen — Clarifying Questions</h1>
-    <p class="sub">Answer below each question. Answers save in this browser; export the JSON for Junam.</p>
+    <p class="sub">Answer below each question. Connect auto-save once, and every answer writes straight to disk for Junam.</p>
 
     <div class="dash" id="dash"></div>
 
@@ -152,6 +161,7 @@
       </div>
       <div class="grow"><input type="search" id="q" placeholder="Filter questions…" autocomplete="off"></div>
       <select id="sec"></select>
+      <button class="btn" id="autosave-btn" title="Writes answers/cyclamen-qa-live.json automatically on every save">Auto-save: checking…</button>
       <button class="btn p" id="exp-json">Export for Junam</button>
       <button class="btn" id="exp-md">Export Markdown</button>
       <button class="btn" id="imp-btn">Import…</button>
@@ -600,6 +610,7 @@
     if (!Array.isArray(state.answers[id].entries)) state.answers[id].entries = [];
     state.answers[id].entries.push({ text:text, at:new Date().toISOString() });
     save();
+    autoSaveNow();
   }
   function resolve(q){
     var es = entriesOf(q.id);
@@ -621,7 +632,8 @@
   var el = {
     dash:document.getElementById("dash"), list:document.getElementById("list"),
     tOpen:document.getElementById("tab-open"), tClosed:document.getElementById("tab-closed"),
-    search:document.getElementById("q"), sel:document.getElementById("sec"), toast:document.getElementById("toast")
+    search:document.getElementById("q"), sel:document.getElementById("sec"), toast:document.getElementById("toast"),
+    autosave:document.getElementById("autosave-btn")
   };
 
   var tt;
@@ -807,9 +819,9 @@
   }
   function stamp(){ return new Date().toISOString().slice(0,10); }
 
-  function exportJSON(){
+  function buildPayload(){
     var s = stats();
-    var out = {
+    return {
       schema:"cyclamen-qa/1",
       exportedAt:new Date().toISOString(),
       source:"ClaryfingQuestions.html",
@@ -827,8 +839,120 @@
         };
       })
     };
-    download("cyclamen-qa-" + stamp() + ".json", JSON.stringify(out, null, 2), "application/json");
+  }
+
+  function exportJSON(){
+    download("cyclamen-qa-" + stamp() + ".json", JSON.stringify(buildPayload(), null, 2), "application/json");
     toast("Exported — hand this file to Junam");
+  }
+
+  // ---- Auto-save: writes buildPayload() straight to answers/cyclamen-qa-live.json on
+  // every answer, via the File System Access API. Needs one user-gesture grant per browser
+  // (the handle is then remembered in IndexedDB); unsupported browsers keep the manual
+  // Export button as their only path. ------------------------------------------------------
+  var FS_SUPPORTED = (typeof window.showSaveFilePicker === "function");
+  var FS_DB = "cyclamen-qa-fs", FS_STORE = "handles", FS_KEY = "liveFile";
+  var fsHandle = null, fsConnected = false;
+
+  function idbOpen(){
+    return new Promise(function(resolve, reject){
+      if (!window.indexedDB){ reject(new Error("no indexedDB")); return; }
+      var req = indexedDB.open(FS_DB, 1);
+      req.onupgradeneeded = function(){ req.result.createObjectStore(FS_STORE); };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  }
+  function idbGet(key){
+    return idbOpen().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(FS_STORE, "readonly");
+        var rq = tx.objectStore(FS_STORE).get(key);
+        rq.onsuccess = function(){ resolve(rq.result || null); };
+        rq.onerror = function(){ reject(rq.error); };
+      });
+    });
+  }
+  function idbSet(key, val){
+    return idbOpen().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(FS_STORE, "readwrite");
+        tx.objectStore(FS_STORE).put(val, key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ reject(tx.error); };
+      });
+    });
+  }
+
+  function renderAutosaveBtn(){
+    var b = el.autosave;
+    if (!FS_SUPPORTED){
+      b.textContent = "Auto-save needs Chrome/Edge"; b.className = "btn"; b.disabled = true;
+      b.title = "This browser lacks the File System Access API — use “Export for Junam” instead.";
+      return;
+    }
+    b.disabled = false;
+    if (fsConnected){
+      b.textContent = "Auto-save: ON"; b.className = "btn as-on";
+      b.title = "Every answer writes straight to " + (fsHandle && fsHandle.name ? fsHandle.name : "the connected file") + ". Click to disconnect.";
+    } else if (fsHandle){
+      b.textContent = "Auto-save: click to resume"; b.className = "btn as-off";
+      b.title = "Browser needs a quick re-grant for this session — click once.";
+    } else {
+      b.textContent = "Connect auto-save…"; b.className = "btn";
+      b.title = "Pick answers/cyclamen-qa-live.json once; every future answer writes there automatically.";
+    }
+  }
+
+  function autoSaveNow(){
+    if (!fsConnected || !fsHandle) return;
+    fsHandle.createWritable().then(function(w){
+      return w.write(JSON.stringify(buildPayload(), null, 2)).then(function(){ return w.close(); });
+    }).catch(function(err){
+      fsConnected = false; renderAutosaveBtn();
+      toast("Auto-save stopped (" + (err && err.name || "error") + ") — click Auto-save to reconnect");
+    });
+  }
+
+  function connectAutosave(){
+    if (!FS_SUPPORTED){ toast("This browser can't auto-save to disk — use Export for Junam instead."); return; }
+    window.showSaveFilePicker({
+      suggestedName: "cyclamen-qa-live.json",
+      types: [{ description: "Cyclamen Q&A live export", accept: { "application/json": [".json"] } }]
+    }).then(function(handle){
+      fsHandle = handle; fsConnected = true;
+      renderAutosaveBtn();
+      idbSet(FS_KEY, handle).catch(function(){});
+      autoSaveNow();
+      toast("Auto-save connected — answers now write to disk automatically");
+    }).catch(function(err){
+      if (err && err.name === "AbortError") return; // user cancelled the picker
+      toast("Could not connect auto-save: " + (err && err.message || err));
+    });
+  }
+
+  function toggleAutosave(){
+    if (fsConnected){ fsConnected = false; renderAutosaveBtn(); toast("Auto-save disconnected for this session"); return; }
+    if (fsHandle){
+      fsHandle.requestPermission({ mode:"readwrite" }).then(function(perm){
+        if (perm === "granted"){ fsConnected = true; renderAutosaveBtn(); autoSaveNow(); toast("Auto-save resumed"); }
+        else { toast("Permission not granted"); }
+      }).catch(function(){ connectAutosave(); });
+      return;
+    }
+    connectAutosave();
+  }
+
+  function tryReconnectAutosave(){
+    if (!FS_SUPPORTED){ renderAutosaveBtn(); return; }
+    idbGet(FS_KEY).then(function(handle){
+      if (!handle){ renderAutosaveBtn(); return; }
+      fsHandle = handle;
+      return handle.queryPermission({ mode:"readwrite" }).then(function(perm){
+        fsConnected = (perm === "granted");
+        renderAutosaveBtn();
+      });
+    }).catch(function(){ renderAutosaveBtn(); });
   }
 
   function exportMD(){
@@ -882,6 +1006,7 @@
         if (hist.length >= have.length){ state.answers[q.id] = { entries:hist }; n++; }
       });
       save(); render();
+      if (n) autoSaveNow();
       toast(n ? ("Imported answers for " + n + " question(s)") : "Nothing new to import");
     };
     fr.readAsText(file);
@@ -898,9 +1023,11 @@
     if (ev.target.files && ev.target.files[0]) importJSON(ev.target.files[0]);
     ev.target.value = "";
   });
+  el.autosave.addEventListener("click", toggleAutosave);
 
   buildSelect();
   render();
+  tryReconnectAutosave();
 })();
 </script>
 </body>

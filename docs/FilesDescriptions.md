@@ -66,6 +66,17 @@ them be joined, cross-checked, and code-generated from.
 > `openpyxl`). Open them in Google Sheets/Docs, or export to `.xlsx`/`.csv` first if you
 > need to process them programmatically.
 
+> **Note on `.url` shortcut files.** `Hanit 1.4.url`, `Tests.url` and
+> `Geodatabase Population.url` are plain-text Windows Internet Shortcuts
+> (`[InternetShortcut]` / `URL=`) pointing at the edit URL of the matching Sheet — the same
+> format already used by `Hanit 1.4 Format/Hanit page at SoI.url`. They are a local
+> convenience for opening a sheet in a browser without going through the Drive file-stream
+> integration. Unlike a `.lnk`, a `.url` file holds nothing but the target URL — no browser
+> install path, no machine-specific content — so it is portable across machines. They carry
+> no content of their own and are **not** a fourth source or source of truth; the three
+> Sheets listed above remain authoritative. There is no corresponding `.url` for
+> `Hanit 1.4 Metadata.gdoc` — only the three Sheets have one, not the Doc.
+
 ---
 
 ## 3. Primary documents
@@ -425,7 +436,7 @@ accident while consolidating into `Tests.gsheet` and `Geodatabase Population.gsh
 | **Hanit / חני"ת**        | The national CAD specification for cadastral maps submitted to SoI. Current version 1.4.                                                                                          |
 | **SoI / מפ"י**            | Survey of Israel, המרכז למיפוי ישראל — the national mapping and cadastre authority.                                                                              |
 | **Gush / גוש**            | Cadastral block — the primary land-registration grouping.                                                                                                                        |
-| **Helka / חלקה**         | Parcel — a single registered land unit within a*gush*.                                                                                                                         |
+| **Helka / חלקה**         | Parcel — a single registered land unit within a *block*.                                                                                                                      |
 | **תצ"ר**                  | Parcellation plan; a*dynamic* process, it changes parcel boundaries.                                                                                                            |
 | **תת"ג**                  | Block boundary determination plan (*static*).                                                                                                                                   |
 | **ה"ק / הסדר**         | Land settlement / settlement of title.                                                                                                                                            |
