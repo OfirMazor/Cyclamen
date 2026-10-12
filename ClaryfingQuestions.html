@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyclamen Q&amp;A</title>
+<!--
+  CYCLAMEN CLARIFYING QUESTIONS — source of truth.
+
+  FOR JUNAM (and any agent editing this file):
+  * The question bank is the JSON block <script id="question-bank"> near the bottom.
+    Add questions by appending objects to that array. Never renumber or reuse an `id`:
+    answers are keyed by id in the user's browser storage.
+  * Object shape:
+      {
+        "id":       "Q3.12",            // unique, stable, shown as a badge
+        "section":  "3. Validation tests (Tests.gsheet)",
+        "question": "One-sentence question.",
+        "bullets":  ["sub-point", "implication"],   // optional
+        "note":     "context / prior partial answer", // optional
+        "seedAnswer": "answer carried over from the markdown" // optional; makes it Closed
+      }
+  * Answers typed by the user live in localStorage only. They are exported with the
+    "Export for Junam" button as cyclamen-qa-<date>.json. Read that file, then fold the
+    answers back into CLAUDE.md / docs/FilesDescriptions.md and add `seedAnswer` here so a
+    cleared browser does not lose them.
+  * `Export Markdown` downloads a derived read-only view as CLARIFYING_QUESTIONS.generated.md.
+    It is disposable and is never committed — this file is the source of truth, and the
+    deleted CLARIFYING_QUESTIONS.md must not be recreated as a second one.
+-->
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfcfd; --ink:#1b1f24; --ink-2:#5a6472;
+    --line:#e3e7ec; --line-2:#eef1f5; --accent:#2f6fd0; --accent-ink:#ffffff;
+    --open:#b4690e; --open-bg:#fdf3e3; --closed:#1b7a4b; --closed-bg:#e8f6ee;
+    --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171a; --panel:#1c2024; --panel-2:#20252a; --ink:#e8ecf1; --ink-2:#9aa6b4;
+      --line:#2b3238; --line-2:#242a30; --accent:#5b9bf0; --accent-ink:#0e1114;
+      --open:#e3a857; --open-bg:#30261a; --closed:#5fc48d; --closed-bg:#17291f;
+      --shadow:0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171a; --panel:#1c2024; --panel-2:#20252a; --ink:#e8ecf1; --ink-2:#9aa6b4;
+    --line:#2b3238; --line-2:#242a30; --accent:#5b9bf0; --accent-ink:#0e1114;
+    --open:#e3a857; --open-bg:#30261a; --closed:#5fc48d; --closed-bg:#17291f;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 16px 64px}
+  header.top{padding:22px 0 0}
+  h1{font-size:19px; margin:0 0 2px; letter-spacing:-.01em}
+  .sub{color:var(--ink-2); font-size:13px; margin:0}
+
+  /* dashboard */
+  .dash{
+    display:flex; align-items:center; gap:0; flex-wrap:wrap;
+    margin:14px 0 0; padding:9px 12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:var(--shadow); font-size:13px;
+  }
+  .dash .m{display:flex; align-items:baseline; gap:5px; padding:0 11px; white-space:nowrap}
+  .dash .m+.m{border-left:1px solid var(--line-2)}
+  .dash .m b{font-size:14px; font-variant-numeric:tabular-nums}
+  .dash .m span{color:var(--ink-2); font-size:12px}
+  .dash .m.o b{color:var(--open)} .dash .m.c b{color:var(--closed)}
+  .bar{flex:1 1 90px; min-width:70px; height:6px; margin:0 11px; border-radius:99px; background:var(--line); overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--closed); border-radius:99px; transition:width .25s}
+
+  /* toolbar */
+  .tools{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0 0}
+  .tabs{display:flex; gap:4px; padding:3px; background:var(--panel); border:1px solid var(--line); border-radius:9px}
+  .tab{
+    appearance:none; border:0; background:transparent; color:var(--ink-2); cursor:pointer;
+    font:inherit; font-size:13px; padding:6px 13px; border-radius:6px;
+  }
+  .tab[aria-selected="true"]{background:var(--accent); color:var(--accent-ink); font-weight:600}
+  .grow{flex:1 1 140px}
+  input[type=search],select{
+    width:100%; font:inherit; font-size:13px; color:var(--ink); background:var(--panel);
+    border:1px solid var(--line); border-radius:8px; padding:7px 10px;
+  }
+  select{width:auto; max-width:230px}
+  .btn{
+    appearance:none; cursor:pointer; font:inherit; font-size:13px; padding:7px 11px;
+    background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+  }
+  .btn:hover{background:var(--panel-2)}
+  .btn.p{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
+
+  /* cards */
+  .sec{margin:22px 0 8px; font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-2)}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:14px 15px; margin:0 0 10px;
+  }
+  .qhead{display:flex; gap:9px; align-items:flex-start}
+  .badge{
+    flex:0 0 auto; font-size:11px; font-weight:700; letter-spacing:.02em; padding:3px 7px;
+    border-radius:6px; background:var(--open-bg); color:var(--open); font-variant-numeric:tabular-nums;
+  }
+  .card.done .badge{background:var(--closed-bg); color:var(--closed)}
+  .q{margin:0; font-weight:600}
+  ul.b{margin:7px 0 0; padding-left:20px; color:var(--ink-2); font-size:13.5px}
+  ul.b li{margin:2px 0}
+  .note{
+    margin:9px 0 0; padding:7px 10px; font-size:13px; color:var(--ink-2);
+    background:var(--panel-2); border-left:2px solid var(--line); border-radius:0 6px 6px 0;
+  }
+  .ans{margin:10px 0 0; padding:10px 12px; background:var(--closed-bg); border-radius:8px; white-space:pre-wrap}
+  .meta{margin:7px 0 0; font-size:12px; color:var(--ink-2); display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+  textarea{
+    width:100%; margin:10px 0 0; min-height:84px; resize:vertical; font:inherit; font-size:14px;
+    color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:9px 11px;
+  }
+  textarea:focus,input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px}
+  .row{display:flex; gap:8px; align-items:center; margin:8px 0 0; flex-wrap:wrap}
+  .hint{font-size:12px; color:var(--ink-2)}
+  details.hist{margin:8px 0 0; font-size:13px}
+  details.hist summary{cursor:pointer; color:var(--ink-2); font-size:12px}
+  details.hist .h{margin:7px 0 0; padding:7px 10px; background:var(--panel-2); border-radius:7px; white-space:pre-wrap}
+  .empty{padding:36px 12px; text-align:center; color:var(--ink-2)}
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(8px);
+    background:var(--ink); color:var(--bg); font-size:13px; padding:8px 14px; border-radius:99px;
+    opacity:0; pointer-events:none; transition:.18s;
+  }
+  .toast.on{opacity:1; transform:translateX(-50%)}
+  @media (max-width:560px){ .dash .m+.m{border-left:0} .bar{flex-basis:100%; margin:6px 11px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Cyclamen — Clarifying Questions</h1>
+    <p class="sub">Answer below each question. Answers save in this browser; export the JSON for Junam.</p>
+
+    <div class="dash" id="dash"></div>
+
+    <div class="tools">
+      <div class="tabs" role="tablist">
+        <button class="tab" id="tab-open" role="tab" aria-selected="true">Open</button>
+        <button class="tab" id="tab-closed" role="tab" aria-selected="false">Closed</button>
+      </div>
+      <div class="grow"><input type="search" id="q" placeholder="Filter questions…" autocomplete="off"></div>
+      <select id="sec"></select>
+      <button class="btn p" id="exp-json">Export for Junam</button>
+      <button class="btn" id="exp-md">Export Markdown</button>
+      <button class="btn" id="imp-btn">Import…</button>
+      <input type="file" id="imp" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main id="list"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="application/json" id="question-bank">
+[
+  {
+    "id": "Q1.1",
+    "section": "1. Overall architecture & pipeline",
+    "question": "Does the engine process one DWG file at a time, or can it batch-process multiple files?",
+    "bullets": ["Implications: sequential vs. parallel execution, transaction boundaries, state management"],
+    "seedAnswer": "One file at a time."
+  },
+  {
+    "id": "Q1.2",
+    "section": "1. Overall architecture & pipeline",
+    "question": "What is the complete lifecycle after validation passes?",
+    "bullets": [
+      "Does it immediately convert and insert into the geodatabase, or is there a staging/approval step?",
+      "Is there rollback capability if the insertion fails?",
+      "Can a file be re-processed (re-validated, re-migrated)?"
+    ],
+    "seedAnswer": "The engine first runs all tests and verifies the DWG file. Conversion and insertion into the GDB is the final stage — it only executes if all critical tests pass. There is rollback on insertion failure. A file can be reprocessed whether or not it is already in the database; if it is, its data will be overwritten."
+  },
+  {
+    "id": "Q1.3",
+    "section": "1. Overall architecture & pipeline",
+    "question": "Who or what triggers the validation?",
+    "bullets": [
+      "Manual (surveyor uploads via portal)?",
+      "Automated (file monitor)?",
+      "API call from another system?",
+      "This affects error handling and notification requirements."
+    ],
+    "seedAnswer": "The engine can be triggered via API or via a web application that provides a UI for entering or supplying parameters."
+  },
+  {
+    "id": "Q1.4",
+    "section": "1. Overall architecture & pipeline",
+    "question": "What happens when validation fails?",
+    "bullets": [
+      "Are errors reported back to the surveyor with remediation guidance?",
+      "Are partial results saved for later re-run?",
+      "Is there an audit trail of all validation attempts?"
+    ]
+  },
+  {
+    "id": "Q2.1",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "The \"X\" in layer names (C1602_X) is the action number — what are its bounds?",
+    "bullets": [
+      "What is the maximum value of X in a single file? Is there a limit?",
+      "Does X always start at 0 and increment by 1, or can it have gaps?",
+      "Can a file contain non-sequential action numbers?"
+    ],
+    "seedAnswer": "There is no hard limit on the number of actions in one cadastral plan; in practice up to 6–7 is the common maximum. X = 0 represents the cadastral state before any action (the existing state). Actions are numbered from 1 upward in steps of 1 — no gaps. A valid file must contain strictly sequential action numbers."
+  },
+  {
+    "id": "Q2.2",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "Are there other placeholder patterns in layer names besides NameP3D, NameG, NameP and X?",
+    "seedAnswer": "The three named placeholders have fixed meanings: NameP3D = the 3D parcel number, NameG = the Subtraction number (גריעה), NameP = the 2D parcel number. No other placeholder patterns are defined beyond these three and X."
+  },
+  {
+    "id": "Q2.2b",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "Must the engine validate that the NameP3D / NameG / NameP placeholders are expanded correctly?",
+    "note": "Split out of Q2.2, whose original answer defined the placeholders but left the validation obligation open."
+  },
+  {
+    "id": "Q2.3",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "The \"Condition\" column mixes machine-readable expressions and Hebrew prose — what is the formal grammar?",
+    "bullets": [
+      "What is the exact format for machine-readable conditions?",
+      "Are there examples in the current workbook we can extract to build a formal grammar?",
+      "How should developers handle prose conditions — heuristic parsing, throw an error, or flag for manual review?"
+    ],
+    "note": "Previously deferred: \"not yet decided — to be determined in the future\"."
+  },
+  {
+    "id": "Q2.4",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "The Codebook tab has 15 domains and the GDB has 27 — how do they map?",
+    "bullets": [
+      "Which Hanit domains map to which GDB domains?",
+      "The docs note one broken reference (PARCEL_STATUS → PARCEL_SOURE). Has this been fixed?",
+      "Are there domains in the GDB that have no Hanit equivalent?"
+    ],
+    "seedAnswer": "The Codebook (Hanit/CAD side) and the GDB Domains are not meant to map to each other — they belong to different schemas with different structures. Some are conceptually similar with minor differences. Developers should treat them as independent vocabularies and must not attempt to join or equate them. The broken reference (C1603.PARCEL_STATUS → PARCEL_SOURE) has been fixed directly in Hanit 1.4.gsheet."
+  },
+  {
+    "id": "Q2.5",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "Are process types 1, 3, 4, 6, 9, 10, 11, 13, 15 certainly the only in-scope types?",
+    "bullets": [
+      "What should the engine do if it receives a DWG claiming to be type 2, 5, 7, 8, 12, 14 or 16?",
+      "Reject with \"unsupported process type\", or silent no-op?"
+    ],
+    "seedAnswer": "Tests.gsheet defines a check (Check 1) that validates the process type before the engine proceeds further. An out-of-scope or unrecognised process type causes that check to fail with an error message. See Tests.gsheet for the exact check definition and severity."
+  },
+  {
+    "id": "Q2.6",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "What severity applies when a DWG violates a block \"Occurrence Rule\"?",
+    "bullets": [
+      "If a layer requires \"1+\" blocks but has zero, is that Fatal or Critical?",
+      "If it requires \"Total of 1\" (mutual exclusivity) but has 2, is that Fatal?"
+    ],
+    "seedAnswer": "Occurrence Rule violations are handled by Check 6 in Tests.gsheet. See that file for the exact severity assigned to each violation type."
+  },
+  {
+    "id": "Q2.7",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "Does \"Allow Null\" mean the attribute can be missing entirely, or just empty?",
+    "bullets": ["Implications: XML validation, database NOT NULL constraints, ETL logic"],
+    "seedAnswer": "Both a missing attribute and an empty string are treated as null."
+  },
+  {
+    "id": "Q2.8",
+    "section": "2. Hanit 1.4 specification (Hanit 1.4.gsheet)",
+    "question": "How are Codebook-referencing \"Expected Values\" enforced, and does Allow Null override them?",
+    "bullets": [
+      "If a value doesn't match any code in that domain, is it Fatal or Critical?",
+      "Can validation be skipped if the field is empty?"
+    ],
+    "seedAnswer": "Domain-value conformance is handled by Check 7 in Tests.gsheet — see that file for severity. When an attribute's Expected Values references a Codebook domain, Allow Null must be False (the attribute is mandatory). All such cases have been corrected directly in Hanit 1.4.gsheet."
+  },
+  {
+    "id": "Q3.1",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "Tests.gsheet is an early draft with 8 of 14 checks — is 14 the final count?",
+    "bullets": [
+      "Are more checks expected beyond 14?",
+      "Are the missing 6 placeholders, or known but unwritten?"
+    ]
+  },
+  {
+    "id": "Q3.2",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "Check 1 uses \"a signature block per process type\" — what is the exact signature?",
+    "bullets": [
+      "Block name, attribute name, expected value?",
+      "Where is this signature block specification recorded?"
+    ]
+  },
+  {
+    "id": "Q3.3",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "Checks 2–3 reference \"a separate in-system file\" for the national boundary — where is it?",
+    "bullets": [
+      "Local file path, database table, or REST API?",
+      "Is maintaining it within Cyclamen's scope, or an external dependency?"
+    ]
+  },
+  {
+    "id": "Q3.4",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "In Check 4, is a conditionally mandatory layer that is missing because its condition is unmet a pass or a fail?",
+    "bullets": ["How are conditional checks evaluated — before the layer check, or in parallel?"]
+  },
+  {
+    "id": "Q3.5",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "In Check 5, what exactly does \"only permitted Layer Content type\" mean?",
+    "bullets": [
+      "If a Geometry layer has both polylines and blocks, is that a fail?",
+      "Can a layer of type Mixed contain both?"
+    ]
+  },
+  {
+    "id": "Q3.6",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "In Check 6, how is the block count determined for an occurrence rule like \"3+\"?",
+    "bullets": [
+      "By block instance, or by block type?",
+      "Is 3 blocks of type A plus 2 of type B acceptable, or must all blocks be the same type?"
+    ]
+  },
+  {
+    "id": "Q3.7",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "Does Check 7 validate all attributes, or only those with Allow Null = False?",
+    "bullets": ["For Codebook-referencing attributes, are case sensitivity and whitespace significant?"]
+  },
+  {
+    "id": "Q3.8",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "In Check 8 (תצ\"ר action table), what defines \"complete\"?",
+    "bullets": [
+      "Specific blocks, specific attributes, a minimum count?",
+      "Is this check only for process types 1 and 11, or others too?"
+    ]
+  },
+  {
+    "id": "Q3.9",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "When a prerequisite check fails, are dependent checks skipped or still run?",
+    "bullets": [
+      "Check 6 depends on Check 4, and Check 7 on Check 5.",
+      "If Check 4 fails, do we skip Check 6, or run it and report \"skipped due to dependency\"?",
+      "Can developers assume checks always run in dependency order?"
+    ]
+  },
+  {
+    "id": "Q3.10",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "Message placeholders appear both bare (Layer) and brace-delimited ({Block}) — which form is canonical?",
+    "bullets": [
+      "Should developers normalize before substitution, or handle both?",
+      "Is there a finite list of placeholder types beyond X, Y, Layer and Block?"
+    ]
+  },
+  {
+    "id": "Q3.11",
+    "section": "3. Validation tests (Tests.gsheet)",
+    "question": "What does \"Info\" severity mean operationally?",
+    "bullets": [
+      "Does it appear in the output report but not prevent registration?",
+      "Or does it appear only in the audit trail?"
+    ]
+  },
+  {
+    "id": "Q4.1",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "Is the Recorded flag the only difference between the InProcess* and Recorded* classes?",
+    "bullets": ["Or are there other schema differences — columns, validation rules, indexes?"]
+  },
+  {
+    "id": "Q4.2",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "Of the 31 datasets across 5 families, which are required for Cyclamen to function?",
+    "bullets": [
+      "Are the validation-output classes (GDB_ValidationPointErrors etc.) required?",
+      "Are the Adjustment classes (AdjustmentPoints, AdjustmentLines, AdjustmentVectors) required, given three are marked \"not in use\"?"
+    ]
+  },
+  {
+    "id": "Q4.3",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "Are all 603 GDB fields required, or are some optional or reserved for the future?",
+    "bullets": ["Is there a flag or comment distinguishing \"must implement\" from \"nice to have\"?"]
+  },
+  {
+    "id": "Q4.4",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "34 of 61 Population=True fields have an empty Population Description — what does empty mean?",
+    "bullets": ["\"Straight copy from the block attribute\", or \"not yet specified, developer must guess\"?"],
+    "note": "Hard prerequisite for writing the migration code."
+  },
+  {
+    "id": "Q4.5",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "Are all 27 GDB domains fully specified?",
+    "bullets": ["Do any contain placeholder codes such as \"TBD\" or \"reserved\"?"]
+  },
+  {
+    "id": "Q4.6",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "What is \"Overwrite Description\" for — only one field sets it today?",
+    "bullets": [
+      "Is it for re-ingest scenarios (running the engine again on the same process)?",
+      "Should there be a field-level or dataset-level overwrite policy instead?"
+    ]
+  },
+  {
+    "id": "Q4.7",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "Does the engine create the Geodatabase schema, or assume it already exists?",
+    "bullets": ["If it creates it, from what source — Geodatabase Population.gsheet via ESRI Python, or an ArcGIS template?"]
+  },
+  {
+    "id": "Q4.8",
+    "section": "4. Geodatabase schema (Geodatabase Population.gsheet)",
+    "question": "What is the GDB connection string / location?",
+    "bullets": ["A single shared production GDB, or per-user / per-environment instances?"]
+  },
+  {
+    "id": "Q5.1",
+    "section": "5. Process types & scope",
+    "question": "Does one Hanit spec cover all nine in-scope process types, or is a separate spec sheet needed per type?",
+    "bullets": ["The current sheet has one Layers tab with all types in a single Process Type column."]
+  },
+  {
+    "id": "Q5.2",
+    "section": "5. Process types & scope",
+    "question": "Are process types mutually exclusive within a single DWG?",
+    "bullets": ["Can a file claim to be both type 1 and type 3, or must it be exactly one?"],
+    "seedAnswer": "A single file = a single cadastral plan = a single process type. Process types are mutually exclusive per file."
+  },
+  {
+    "id": "Q6.1",
+    "section": "6. Error handling & recovery",
+    "question": "If a DWG fails validation, what data is persisted?",
+    "bullets": ["The original DWG file?", "The parsed geometry and blocks?", "Just the error log?"]
+  },
+  {
+    "id": "Q6.2",
+    "section": "6. Error handling & recovery",
+    "question": "Is a re-submitted DWG treated as a new submission or an update to the prior one?",
+    "bullets": ["If an update, is the prior submission's data deleted or archived?"],
+    "note": "A1.2 covers reprocessing behaviour for a file already in the GDB (its data is overwritten), but not the submission-record semantics."
+  },
+  {
+    "id": "Q6.3",
+    "section": "6. Error handling & recovery",
+    "question": "If the GDB insert fails partway through (e.g. 20 of 31 datasets inserted, then a crash), how is it unwound?",
+    "bullets": ["Automatic rollback, or manual cleanup by a developer?"],
+    "note": "A1.2 confirms rollback capability exists; the mechanism and its granularity are still undefined."
+  },
+  {
+    "id": "Q7.1",
+    "section": "7. Data quality & constraints",
+    "question": "Where is Length\\Precision validated — in the DWG parser or at GDB insert time?",
+    "bullets": [
+      "Integer: digit count",
+      "Float: decimal places",
+      "String: character count (spaces and niqqud count as characters)"
+    ],
+    "seedAnswer": "Validated in the DWG parser."
+  },
+  {
+    "id": "Q7.2",
+    "section": "7. Data quality & constraints",
+    "question": "Should the engine preserve, strip or reject strings containing niqqud (Hebrew diacritics)?",
+    "bullets": ["Is this specified per-field or globally?"]
+  },
+  {
+    "id": "Q7.3",
+    "section": "7. Data quality & constraints",
+    "question": "If an attribute references a Codebook domain that does not exist (e.g. Codebook['CLASS']), what happens?",
+    "bullets": ["Fatal error, or log a warning and skip the validation?"]
+  },
+  {
+    "id": "Q8.1",
+    "section": "8. Documentation & metadata",
+    "question": "Is there a separate data dictionary for end users (surveyors, GIS analysts)?",
+    "bullets": ["Or is Hanit 1.4 Metadata.gdoc the only documentation?"]
+  },
+  {
+    "id": "Q8.2",
+    "section": "8. Documentation & metadata",
+    "question": "Are there example valid DWG files for each process type?",
+    "bullets": ["Should developers have these to test against?"]
+  },
+  {
+    "id": "Q8.3",
+    "section": "8. Documentation & metadata",
+    "question": "Does the Cyclamen engine carry its own version number?",
+    "bullets": [
+      "How does it relate to the Hanit 1.4 version?",
+      "If Hanit 1.5 is released, must Cyclamen stay backward compatible?"
+    ]
+  },
+  {
+    "id": "Q9.1",
+    "section": "9. Performance & constraints",
+    "question": "What is the maximum file size for a submitted DWG?",
+    "bullets": ["Implications: memory use, timeout thresholds, streaming vs. load-all"]
+  },
+  {
+    "id": "Q9.2",
+    "section": "9. Performance & constraints",
+    "question": "Is there a maximum validation execution time?",
+    "bullets": ["If validation runs longer than X minutes, does it auto-fail or keep waiting?"]
+  },
+  {
+    "id": "Q9.3",
+    "section": "9. Performance & constraints",
+    "question": "How many concurrent validations must the engine support?",
+    "bullets": ["Single-threaded, or parallelizable?"]
+  },
+  {
+    "id": "Q10.1",
+    "section": "10. Integration & external dependencies",
+    "question": "Which library parses the DWG?",
+    "bullets": ["Autodesk SDK, an open-source library, or a custom parser?"]
+  },
+  {
+    "id": "Q10.2",
+    "section": "10. Integration & external dependencies",
+    "question": "Which technology performs GDB creation and updates?",
+    "bullets": ["ArcGIS Desktop, ArcPy, the ESRI REST API, or direct database SQL?"]
+  },
+  {
+    "id": "Q10.3",
+    "section": "10. Integration & external dependencies",
+    "question": "What is the national boundary file used by Checks 2–3?",
+    "bullets": ["Format — shapefile, GeoJSON, database table?", "Who maintains it?", "How often does it change?"]
+  },
+  {
+    "id": "Q10.4",
+    "section": "10. Integration & external dependencies",
+    "question": "Is Cyclamen expected to query בנק\"ל (the national cadastral data bank), or is it external?",
+    "bullets": ["Tests.gsheet Checks 2–3 reference it, and Older References suggests comparison checks."]
+  },
+  {
+    "id": "G1",
+    "section": "11. Specification gaps (from the Summary of Gaps)",
+    "question": "Three of the 31 GDB Adjustment datasets are marked \"not in use\" — retain them in the schema, or retire them?",
+    "bullets": ["AdjustmentVectors, AdjustmentLines, ConnectionsLines"]
+  },
+  {
+    "id": "G2",
+    "section": "11. Specification gaps (from the Summary of Gaps)",
+    "question": "Geodatabase Population.gsheet has ?????? cells for process types 3 and 6 — what are the real block names?",
+    "bullets": ["Unresolved for ProcessName, ProcessNumber, ProcessYear and SurveyorLicenseID"]
+  },
+  {
+    "id": "G3",
+    "section": "11. Specification gaps (from the Summary of Gaps)",
+    "question": "The GDB Process Types tab is duplicated in both Hanit 1.4.gsheet and Tests.gsheet — which copy is authoritative?"
+  }
+]
+</script>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "cyclamen-qa-v1";
+  var BANK = [];
+  try { BANK = JSON.parse(document.getElementById("question-bank").textContent) || []; }
+  catch(e){ BANK = []; }
+
+  var state = { version:1, answers:{} };
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && p.answers) state = p; }
+  } catch(e){}
+
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ toast("Could not save — browser storage is blocked"); } }
+
+  function entriesOf(id){
+    var r = state.answers[id];
+    return (r && Array.isArray(r.entries)) ? r.entries : [];
+  }
+  function push(id, text){
+    if (!state.answers[id]) state.answers[id] = { entries:[] };
+    if (!Array.isArray(state.answers[id].entries)) state.answers[id].entries = [];
+    state.answers[id].entries.push({ text:text, at:new Date().toISOString() });
+    save();
+  }
+  function resolve(q){
+    var es = entriesOf(q.id);
+    if (es.length){
+      var last = es[es.length-1];
+      return { closed: !!(last.text||"").trim(), text:last.text||"", at:last.at, entries:es, seeded:false, seed:q.seedAnswer||"" };
+    }
+    if (q.seedAnswer) return { closed:true, text:q.seedAnswer, at:null, entries:[], seeded:true, seed:q.seedAnswer };
+    return { closed:false, text:"", at:null, entries:[], seeded:false, seed:"" };
+  }
+  function fmt(iso){
+    if (!iso) return "";
+    var d = new Date(iso); if (isNaN(d)) return "";
+    var p = function(n){ return (n<10?"0":"")+n; };
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());
+  }
+
+  var ui = { tab:"open", q:"", sec:"" };
+  var el = {
+    dash:document.getElementById("dash"), list:document.getElementById("list"),
+    tOpen:document.getElementById("tab-open"), tClosed:document.getElementById("tab-closed"),
+    search:document.getElementById("q"), sel:document.getElementById("sec"), toast:document.getElementById("toast")
+  };
+
+  var tt;
+  function toast(msg){
+    el.toast.textContent = msg; el.toast.classList.add("on");
+    clearTimeout(tt); tt = setTimeout(function(){ el.toast.classList.remove("on"); }, 2200);
+  }
+
+  function node(tag, cls, text){
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function stats(){
+    var total = BANK.length, closed = 0, last = null;
+    BANK.forEach(function(q){
+      var r = resolve(q);
+      if (r.closed) closed++;
+      if (r.at && (!last || r.at > last)) last = r.at;
+    });
+    return { total:total, closed:closed, open:total-closed, pct: total? Math.round(closed/total*100):0, last:last, sections:sectionList().length };
+  }
+  function sectionList(){
+    var seen = {}, out = [];
+    BANK.forEach(function(q){ if (!seen[q.section]){ seen[q.section]=1; out.push(q.section); } });
+    return out;
+  }
+
+  function renderDash(){
+    var s = stats();
+    el.dash.textContent = "";
+    function m(label, val, cls){
+      var d = node("div","m"+(cls?" "+cls:""));
+      d.appendChild(node("b", null, String(val)));
+      d.appendChild(node("span", null, label));
+      el.dash.appendChild(d);
+    }
+    m("total", s.total);
+    m("open", s.open, "o");
+    m("answered", s.closed, "c");
+    m("% done", s.pct);
+    var bar = node("div","bar"); var fill = node("i"); fill.style.width = s.pct+"%"; bar.appendChild(fill);
+    el.dash.appendChild(bar);
+    m("sections", s.sections);
+    var d = node("div","m");
+    d.appendChild(node("b", null, s.last ? fmt(s.last).slice(0,10) : "—"));
+    d.appendChild(node("span", null, "last answer"));
+    el.dash.appendChild(d);
+  }
+
+  function matches(q){
+    if (ui.sec && q.section !== ui.sec) return false;
+    if (!ui.q) return true;
+    var hay = (q.id+" "+q.section+" "+q.question+" "+(q.bullets||[]).join(" ")+" "+(q.note||"")+" "+resolve(q).text).toLowerCase();
+    return hay.indexOf(ui.q) >= 0;
+  }
+
+  function card(q){
+    var r = resolve(q);
+    var c = node("div","card"+(r.closed?" done":""));
+    var head = node("div","qhead");
+    head.appendChild(node("span","badge",q.id));
+    head.appendChild(node("p","q",q.question));
+    c.appendChild(head);
+
+    if (q.bullets && q.bullets.length){
+      var ul = node("ul","b");
+      q.bullets.forEach(function(b){ ul.appendChild(node("li",null,b)); });
+      c.appendChild(ul);
+    }
+    if (q.note) c.appendChild(node("p","note",q.note));
+
+    var editing = { on: !r.closed };
+
+    function draw(){
+      // remove everything after the fixed part
+      while (c.lastChild && c.lastChild.dataset && c.lastChild.dataset.dyn) c.removeChild(c.lastChild);
+      var dyn = node("div"); dyn.dataset.dyn = "1";
+
+      if (r.closed && !editing.on){
+        var a = node("div","ans", r.text); dyn.appendChild(a);
+        var meta = node("div","meta");
+        meta.appendChild(node("span",null, r.seeded ? "carried over from CLARIFYING_QUESTIONS.md" : "answered " + fmt(r.at)));
+        var bEdit = node("button","btn","Edit");
+        bEdit.addEventListener("click", function(){ editing.on = true; draw(); });
+        var bReopen = node("button","btn","Reopen");
+        bReopen.addEventListener("click", function(){
+          push(q.id, ""); toast(q.id + " moved to Open"); render();
+        });
+        meta.appendChild(bEdit); meta.appendChild(bReopen);
+        dyn.appendChild(meta);
+        history(dyn, q, r);
+      } else {
+        var ta = node("textarea");
+        ta.value = r.text;
+        ta.placeholder = "Answer for Junam…";
+        dyn.appendChild(ta);
+        var row = node("div","row");
+        var bSave = node("button","btn p","Save answer");
+        bSave.addEventListener("click", function(){
+          var v = ta.value.trim();
+          if (!v){ toast("Nothing to save"); return; }
+          push(q.id, v); toast(q.id + " answered"); render();
+        });
+        row.appendChild(bSave);
+        if (r.closed){
+          var bCancel = node("button","btn","Cancel");
+          bCancel.addEventListener("click", function(){ editing.on = false; draw(); });
+          row.appendChild(bCancel);
+        }
+        row.appendChild(node("span","hint","Ctrl+Enter to save"));
+        dyn.appendChild(row);
+        ta.addEventListener("keydown", function(ev){
+          if ((ev.ctrlKey||ev.metaKey) && ev.key === "Enter"){ ev.preventDefault(); bSave.click(); }
+        });
+        history(dyn, q, r);
+      }
+      c.appendChild(dyn);
+    }
+
+    function history(parent, q, r){
+      var items = [];
+      if (q.seedAnswer) items.push({ text:q.seedAnswer, at:null, label:"original (markdown)" });
+      r.entries.forEach(function(e){ items.push({ text:e.text, at:e.at, label: (e.text||"").trim() ? "revised" : "reopened" }); });
+      // the newest entry is already shown as the current answer
+      if (r.entries.length) items.pop();
+      if (!items.length) return;
+      var d = node("details","hist");
+      d.appendChild(node("summary", null, "History (" + items.length + ")"));
+      items.slice().reverse().forEach(function(it){
+        var h = node("div","h", (it.text||"").trim() ? it.text : "— reopened, no answer —");
+        var m = node("div","meta"); m.appendChild(node("span", null, it.label + (it.at? " · " + fmt(it.at) : "")));
+        d.appendChild(m); d.appendChild(h);
+      });
+      parent.appendChild(d);
+    }
+
+    draw();
+    return c;
+  }
+
+  function render(){
+    renderDash();
+    el.tOpen.setAttribute("aria-selected", ui.tab === "open");
+    el.tClosed.setAttribute("aria-selected", ui.tab === "closed");
+    el.list.textContent = "";
+
+    var shown = BANK.filter(function(q){
+      var r = resolve(q);
+      return (ui.tab === "closed" ? r.closed : !r.closed) && matches(q);
+    });
+
+    if (!shown.length){
+      el.list.appendChild(node("p","empty", ui.tab === "closed"
+        ? "No answered questions match."
+        : "Nothing open here — every question in this view is answered."));
+      return;
+    }
+    var cur = null;
+    shown.forEach(function(q){
+      if (q.section !== cur){ cur = q.section; el.list.appendChild(node("h2","sec",cur)); }
+      el.list.appendChild(card(q));
+    });
+  }
+
+  function buildSelect(){
+    el.sel.textContent = "";
+    var all = node("option", null, "All sections"); all.value = "";
+    el.sel.appendChild(all);
+    sectionList().forEach(function(s){
+      var o = node("option", null, s); o.value = s; el.sel.appendChild(o);
+    });
+  }
+
+  function download(name, text, mime){
+    var blob = new Blob([text], { type: mime + ";charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function stamp(){ return new Date().toISOString().slice(0,10); }
+
+  function exportJSON(){
+    var s = stats();
+    var out = {
+      schema:"cyclamen-qa/1",
+      exportedAt:new Date().toISOString(),
+      source:"ClaryfingQuestions.html",
+      stats:{ total:s.total, answered:s.closed, open:s.open, percentComplete:s.pct },
+      questions: BANK.map(function(q){
+        var r = resolve(q);
+        return {
+          id:q.id, section:q.section, question:q.question,
+          bullets:q.bullets || [], note:q.note || "",
+          status: r.closed ? "closed" : "open",
+          answer: r.text, answeredAt: r.at || null,
+          answerSource: r.closed ? (r.seeded ? "markdown-seed" : "user") : null,
+          history: (q.seedAnswer ? [{ text:q.seedAnswer, at:null, source:"markdown-seed" }] : [])
+                   .concat(r.entries.map(function(e){ return { text:e.text, at:e.at, source:"user" }; }))
+        };
+      })
+    };
+    download("cyclamen-qa-" + stamp() + ".json", JSON.stringify(out, null, 2), "application/json");
+    toast("Exported — hand this file to Junam");
+  }
+
+  function exportMD(){
+    var s = stats();
+    var L = [];
+    L.push("# Clarifying questions for the Cyclamen project");
+    L.push("");
+    L.push("> Generated from `ClaryfingQuestions.html` on " + stamp() + " — that file is the source of truth.");
+    L.push("> " + s.closed + " answered, " + s.open + " open, " + s.pct + "% complete.");
+    L.push("");
+    var cur = null;
+    BANK.forEach(function(q){
+      if (q.section !== cur){ cur = q.section; L.push("## " + cur); L.push(""); }
+      var r = resolve(q);
+      L.push("**" + q.id + ":** " + q.question);
+      L.push("");
+      (q.bullets||[]).forEach(function(b){ L.push("- " + b); });
+      if ((q.bullets||[]).length) L.push("");
+      if (q.note){ L.push("_" + q.note + "_"); L.push(""); }
+      if (r.closed){
+        L.push("**A" + q.id.replace(/^Q/,"") + ":** " + r.text.replace(/\n/g, "\n"));
+        if (r.at) L.push("");
+        if (r.at) L.push("_Answered " + fmt(r.at) + "._");
+      } else {
+        L.push("*(Not yet answered.)*");
+      }
+      L.push("");
+      L.push("---");
+      L.push("");
+    });
+    download("CLARIFYING_QUESTIONS.generated.md", L.join("\n"), "text/markdown");
+    toast("Markdown exported");
+  }
+
+  function importJSON(file){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var data;
+      try { data = JSON.parse(String(fr.result)); } catch(e){ toast("Not valid JSON"); return; }
+      if (!data || !Array.isArray(data.questions)){ toast("Unexpected file shape"); return; }
+      var n = 0;
+      data.questions.forEach(function(q){
+        if (!q || !q.id) return;
+        var hist = (q.history||[]).filter(function(h){ return h && h.source === "user"; })
+                                  .map(function(h){ return { text:h.text||"", at:h.at||null }; });
+        if (!hist.length && q.answerSource === "user" && q.answer){
+          hist = [{ text:q.answer, at:q.answeredAt||null }];
+        }
+        if (!hist.length) return;
+        var have = entriesOf(q.id);
+        if (hist.length >= have.length){ state.answers[q.id] = { entries:hist }; n++; }
+      });
+      save(); render();
+      toast(n ? ("Imported answers for " + n + " question(s)") : "Nothing new to import");
+    };
+    fr.readAsText(file);
+  }
+
+  el.tOpen.addEventListener("click", function(){ ui.tab = "open"; render(); });
+  el.tClosed.addEventListener("click", function(){ ui.tab = "closed"; render(); });
+  el.search.addEventListener("input", function(){ ui.q = el.search.value.trim().toLowerCase(); render(); });
+  el.sel.addEventListener("change", function(){ ui.sec = el.sel.value; render(); });
+  document.getElementById("exp-json").addEventListener("click", exportJSON);
+  document.getElementById("exp-md").addEventListener("click", exportMD);
+  document.getElementById("imp-btn").addEventListener("click", function(){ document.getElementById("imp").click(); });
+  document.getElementById("imp").addEventListener("change", function(ev){
+    if (ev.target.files && ev.target.files[0]) importJSON(ev.target.files[0]);
+    ev.target.value = "";
+  });
+
+  buildSelect();
+  render();
+})();
+</script>
+</body>
+</html>
